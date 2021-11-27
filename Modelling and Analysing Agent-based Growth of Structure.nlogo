@@ -1,221 +1,195 @@
-breed [children child];; creating a population of children to move around within the world
-breed [copies copy] ;; creating copies of a child and hatch a copy
-globals [AMPL  big-list Expected-AMPL  clustering coefficient CC Expected-Clustering-Coefficient generationstep Average-Degree degree] ; creating global variables for generationstep, ampl , CC and patch-count
-copies-own [state]
-extensions [nw]
-;network extension
+breed[children child ]  ;; creating a population of children to move around within the world
+breed [copies copy]  ;; creating copies of a child and hatch a copy
+globals [generationstep   patch-count ] ; creating global variables for generationstep and patch-count
+patches-own [left-pcolor center-pcolor right-pcolor];;;; the following patch variables refer to the colors of the 3 focal patches in a neighborhood
 
-directed-link-breed [red-links red-link] ;  this defines a directed-link-breed
-
-to setup ; creates a function called  setup
-  ca
-  nw:set-context turtles links
-  clear-output
-
-
- set show-patch-color TRUE
- set generationstep 1
- crt 1
-  [
-   setxy (max-pxcor / 2) (max-pycor)
-   mark-and-breed
-  ]
- reset-ticks
+to setup  ;; creates a function called setup
+  clear-all ;; this clears the world
+  reset-ticks ;; this resets the tick counter
+  set generationstep 1 ;; set desired number of generations to 1
+  ;; uncomment to for go-once procedure to work
+;    create-turtles 1 [set color white  ;; sets the color of the turtle to white
+;                    set size 2 ;; set size of turtle to 2
+;                    setxy (max-pxcor / 2) (max-pycor - 1) ;; setting start poisiton in the world
+;                    set pcolor green ;; setting patch colour to green
+;                    hatch-children 1 [set color white set size 0.5 set heading 0 set shape "circle" ]
+;                    produces-copy;; calling produce-copy procedure
+;                     die ]
 end
-
-to go-once ; creates a function to go-once
-   clear-all
-    if  show-circle?
-   [
-     make-circle
-
-  ]
-    compute-metrics
+to plot-patch-numbers ;; plot-patch-numbers procedure
+  set-current-plot "Patch-plot"
+  plotxy generationstep patch-count
 end
-
-to mark-and-breed ; creates a function to mark-and-breed
-  ifelse (pcolor != green)
-    [set pcolor green replicate]
-    [set pcolor red]
-  die
-end
-
-to replicate ; to replicate function to move turtles
-  hatch-children 1
-     [
-      set size 0.75
-      set color orange
-      set shape "triangle"
-      if pcolor =  green [make-copy]
-     ]
-end
-
-to make-circle ; creates a make-circle function
- layout-circle turtles (world-width / 2 - 20)
-end
-
-to make-copy ; creates a make-copy function
- hatch-copies 2
-   [
-    set size 0.25
-    set shape "circle"
-    set color white
-    if who mod 2 = 0 [set state  "L"]
+to go ;; to go procedure initialises model 2
+   set generationstep generationstep + 1 ;; set and check the desired number of generations is reached
+   if generationstep < #generations [
+    create-cell-bodies
+    replicate-cell-bodies
    ]
-end
+  end
+to  create-cell-bodies ;; create turtles
+  ifelse count turtles = 0 [
+    ask patch (max-pxcor / 2) max-pycor [
+      set pcolor green
+      sprout 1 [
 
-to-report provisional-path ; created a report procedure called provisional-path (temp)
- report nw:mean-path-length
-end
+        set shape "circle"
+        set size 0.5
+        set color white
 
-to-report max-links ; created a report procedure called max-links
- report min (list (#generations * (#generations - 1) / 2) 1000)
-end
-to go ; creates a go function
-  set generationstep generationstep + 1
-  ask copies
+      ]
+    ]
+  ]
+  [
+   ask turtles with
     [
-      ifelse pcolor != red
-        [move mark-and-breed]  [die]
+      color = white
     ]
-  if generationstep = #generations
-   [
-    ask copies [die]
-    stop
-   ]
-  if show-patch-color = FALSE
-  [
-    clear-patches
+    [
+      if [pcolor] of patch-here = green
+      [
+
+      hatch-copies 1 [
+        set shape "circle"
+        set size 0.5
+        set color yellow
+        set heading -135
+
+      ]
+        hatch-copies 1 [
+        set shape "circle"
+        set size 0.5
+        set color yellow
+        set heading 135
+      ]
+
+    ]
   ]
-  tick
-  if not show-patch-color
-  [ cp
-     if show-circle?
-    [ layout-circle turtles (world-width / 2 - 20)
-         if  #generations > 1 [ set  #generations num-links ]
-      while [count links < #generations]
-        [ask one-of turtles
-          [ create-link-with one-of other turtles ]
+  ]
+
+
+end
+
+to replicate-cell-bodies ;; move turtles
+  ask turtles with [color = yellow] [
+    fd sqrt 2
+    ifelse count turtles-here with
+    [
+      color = white] > 0 [die]
+    [
+      ask patch-here
+      [
+        ifelse pcolor = black [
+          set pcolor green
+        ]
+        [
+          set pcolor red
+        ]
+      ]
     ]
-     ]
-   ]
-  compute-metrics ; CALLS compute-metrics function
-
+  ]
+  ask patches [if count turtles-here with
+    [ color = yellow] > 1 [
+    ask one-of turtles-here [die]
+    set pcolor red ]
+  ]
+  ask turtles [set color white]
 end
 
-to move ; creates a move function
-   ifelse state = "L"
-    [setxy (xcor - 1) (ycor - 1)]
-    [setxy (xcor + 1) (ycor - 1)]
+;; uncomment everything  and recomment create-cell-bodies, to go procedure,  move-cell-bodies for go-once procedure to work
+to go-once ;; initialises model 1
+;  tick
+;    if generationstep < #generations [
+;
+;  set generationstep generationstep + 1 ;; set and check the desired number of generations is reached
+;  ask children[move]
+;  stop
+;      ]
 end
-
-to compute-metrics ; creates a compute-metrics function
-  set Average-Degree mean [degree] of turtles
-
-  nw:set-context turtles links
-  set AMPL nw:mean-path-length
-  set CC mean [nw:clustering-coefficient] of turtles
-end
-
-to make-scatterplot ; creates a procedure for scatterplot
-  set-current-plot "AMPL AND CC VS GENERATIONS "
-  clear-plot
-ASK PATCHES [
-  plotxy AMPL CC
-]
-end
-
-
-;---------------------------------------------------------------------
-to make-links ; creates a make-link function
-  if pcolor != red [ create-links-with children-on neighbors with [pycor < [pycor] of myself]]
-
-  let a link-neighbors with [ycor < [ycor] of myself]
-  if count a > 1 [ask a [ create-link-with turtle item 0 [who] of other a]]
-
-;  ask turtles with [label = 0][create-links-with other turtles]
-;  ask turtles with [label = 1][create-link-with turtle 2]
-;  create-links-with turtles with [pcolor = green]
-;;  --------------------------------------------------
-;  ask turtle 0 [ create-links-with other turtles ]
-;  ask turtle 0 [ create-link-with turtle 1 ]
-;  ask turtle 2 [ create-link-with turtle 1 ]
-;;  -------------------------------------------------
-;  ask turtle 0 [ create-red-links-to other turtles with [pcolor = green] ]
-;  ask turtle 0 [ create-red-links-from other turtles with [pcolor = green]]
-;;  -----------------------------------------------------------------------
-;  ask turtles [
-; if not any? turtles-on neighbors with [pcolor = green]
-; [create-links-with other turtles]
+;to move ;; to move procedure
+; replicate
+; die
+;end
+;to mark-and-breed ;; mark-and-breed procedure
+;  ifelse pcolor != green [set pcolor green produces-copy][die]
+;  set color white
+;  hatch 1
+;end
+;to Show-Patch-Colors ;; patch procedure
+;  ;; assign values to patch variables based on current state of the row
+;  set left-pcolor [pcolor] of patch-at -1 0
+;  set center-pcolor pcolor
+;  set right-pcolor [pcolor] of patch-at 1 0
+; ifelse ((left-pcolor = green and center-pcolor = green and right-pcolor = green) or
+;    (left-pcolor = green and center-pcolor = red and right-pcolor = green) or
+;    (left-pcolor = red and center-pcolor = green and right-pcolor = red) or
+;    (left-pcolor = red and center-pcolor = red and right-pcolor = red))
+;    [ ask patch-at 0 -1[ set pcolor green] ]
+;    [ ask patch-at  0  -1 [ set pcolor red] ]
+;
+;end
+;to replicate ;; to replicate procedure
+;  hatch-children 1 [move-to-lower-left set color white set size 0.5 set heading 0 set shape "circle"]
+;  hatch-children 1 [move-to-lower-right set color white set size 0.5 set heading 0 set shape "circle"]
+;end
+;;
+;to produces-copy ;; to produce-copy procedure
+;  hatch-copies 1 [
+;    set pcolor green
+;    set color white
+;    set size 0.5
+;    set heading 0
+;    set shape "circle"
 ;  ]
-end
+;end
+;to move-to-lower-left ;; to move-to-lower-left procedure
+;  bk 1
+;  lt 90
+;  fd 1
+;  mark-and-breed
+;
+;end
+;to move-to-lower-right ;; to move-to-lower-right procedure
+;  bk 1
+;  rt 90
+;  fd 1
+; mark-and-breed
+;end
 @#$#@#$#@
 GRAPHICS-WINDOW
-247
+210
 10
-1191
-1109
+1194
+995
 -1
 -1
-15.355
+16.0
 1
 10
 1
 1
 1
 0
-0
-0
+1
+1
 1
 0
 60
 0
-70
-1
-1
+60
+0
+0
 1
 ticks
 30.0
 
 BUTTON
-43
-34
-106
-67
-NIL
-setup
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-SLIDER
-21
-133
-144
-166
-#generations
-#generations
-0
-26
-25.0
-1
-1
-NIL
-HORIZONTAL
-
-BUTTON
-43
+130
+46
+194
 79
-105
-112
-go-once
-go\n\n
+NIL
+Setup\n
 NIL
 1
 T
@@ -227,12 +201,12 @@ NIL
 1
 
 BUTTON
-113
-80
-176
-113
+54
+45
+117
+78
 NIL
-go
+Go\n
 T
 1
 T
@@ -243,191 +217,134 @@ NIL
 NIL
 1
 
-SWITCH
-23
-203
-147
-236
-show-patch-color
-show-patch-color
-0
-1
--1000
-
-SWITCH
-23
-240
-146
-273
-show-circle?
-show-circle?
-1
-1
--1000
-
-PLOT
-1201
-11
-1535
-161
-coverage
-generation
-#cells
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"# reproductive cells" 1.0 0 -10899396 true "" "plot count patches with [pcolor = green]"
-"# nonreproducing cells" 1.0 0 -2674135 true "" "plot count patches with [pcolor = red]"
-"# children" 1.0 0 -3844592 true "" "plot count children"
-
-MONITOR
-1
-443
-217
-488
-Average Minimal Path Length (AMPL)
-AMPL
-3
-1
-11
-
-MONITOR
-16
-491
-177
-536
-Clustering Coefficient (CC)
-CC
-3
-1
-11
-
-MONITOR
-0
-390
-90
-435
-# nodes
-count children
-17
-1
-11
-
-MONITOR
-95
-391
-152
-436
-# links
-count links
-17
-1
-11
-
-PLOT
-1229
-247
-1510
-367
-AMPL AND CC VS GENERATIONS 
-AMPL 
-CC
-0.0
-26.0
-0.0
-1.0
-false
-true
-"" ""
-PENS
-"AMPL " 1.0 2 -16777216 true "" "plotxy AMPL CC "
-
 SLIDER
-21
-168
-149
-201
-num-links
-num-links
+22
+437
+194
+470
+#generations
+#generations
 0
-max-links
-25.0
+100
+29.0
 1
 1
 NIL
 HORIZONTAL
 
+SWITCH
+22
+403
+185
+436
+show-patch-colors?
+show-patch-colors?
+1
+1
+-1000
+
 BUTTON
-112
-35
-176
-70
+43
+87
+121
+120
 NIL
-make-links\n
+Clear-All\n
 NIL
 1
 T
-TURTLE
+OBSERVER
 NIL
 NIL
 NIL
 NIL
 1
 
+PLOT
+0
+130
+200
+280
+Patch-Plot
+GenerationStep
+Number of Patches
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Count turtles" 1.0 0 -16777216 true "" "plot count turtles"
+"Count copies" 1.0 0 -7500403 true "" "plot count copies"
+"Count children" 1.0 0 -2674135 true "" "plot count children"
+
 MONITOR
-1272
-191
-1377
-236
-Average-Degree
-Average-Degree
+0
+288
+80
+333
+Patch-count
+count turtles
 17
 1
 11
 
 MONITOR
-1387
-189
-1574
-234
-Expected Clustering Coefficient
-Average-Degree / #generations
+84
+287
+177
+332
+NIL
+Count children
 17
 1
 11
 
 MONITOR
-2
-340
-102
-385
-Expected-AMPL
-(((ln #generations) - 0.577) / ln Average-Degree) + 0.5
+0
+332
+85
+377
+NIL
+Count copies
 17
 1
 11
+
+BUTTON
+127
+88
+207
+121
+NIL
+Go-Once\n
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
 
-This project shows the visual version of   sierpinskis triangle which show population growth by cell division. 
+This project shows the visual version of model 2  sierpinskis triangle which show population growth by cell division. 
 
 ## HOW IT WORKS
 
-The biological notion is  that of growth and structure formation by a cell (containing a “nucleus”) that reproduces by splitting off daughter cells, which are formed at defined positions (lower left and lower right of the parent cell). After this, they behave as parent cells and repeat the cycle of separation and positioning. However, daughter cells  that end up at the same location experience competition for space and resources and as a result become infertile.  The outcome of the process is a tree-shaped “tissue” of green and red patches (respectively reproducing and non-reproducing cells).  For more details, see the description of the first course work.
+Starting point of the development is an initial parent cell, depicted below as a rectangle with a nucleus at the centre, which first divides horizontally in an upper and a lower halve. The lower part then divides vertically in two daughter cells of the same size. The left-hand daughter cell moves downward and to the left; the right-hand cells  moves  downward  and  to  the  right.  These  movements  are  to  circumvent  competition  for  space  and resources which would otherwise hamper the next stage, the expansion of the daughter cells to their full size (i.e. attaining the size of the initial parent cell).
 
-# Visulisation of the Network 
+# Model 1: 
 
-Linking the essential agents in such a way that the flow of instructed actions becomes visible as a network.
+In the simplest model, this gap is somehow filled up by a fourth cell, but it is not easy to come up with a biological plausible mechanism that explains how such a cell is generated.
 
-# Characterisation of the network
-
-Monitors The structure of the network is to be characterised by two parameters, the Average Minimal Path Length (AMPL) and the Clustering Coefficient (CC). Their computed values should show up in the monitors of that name (already on the Interface) during a run of the simulation. 
+# Model 2 :
+Therefore a slightly more elaborate model is pursued. The procedures described above are repeated for each of the two daughter cells (which thereby become the parents of the next generation) without filling up the gap. But an anomaly occurs when the daughter cells are dividing: the right-hand clone of the leftward daughter cell and the left-hand clone of the rightward daughter cell move to a shared patch position and, due to competition, cannot expand to full size. The rule for this particular system is that such cells merge into a single cell. However, by doing so the merged cell loses the capacity to split and thereafter does not divide anymore.
 
 ## HOW TO USE IT
 
@@ -435,21 +352,14 @@ Monitors The structure of the network is to be characterised by two parameters, 
 Setup: When Setup is pressed then the model is initialised with a single cell in the center
 
 # Go-Once: 
-When go-once is pressed then it  displays a top-down pyramid shown in model 2 of the cw3 answer sheet on netlogo. 
-
+When go-once is pressed then it  displays a top-down pyramid shown in model 1 of the cw1 answer sheet on netlogo. 
 #Go: 
-When go is pressed then it begins running the model with the set rule for in this case is sierpinski triangle  of the cw3 answer sheet on netlogo. 
-
+When go is pressed then it begins running the model with the set rule for in this case is sierpinski triangle shown in model 2 of the cw1 answer sheet on netlogo. 
 # Clear-All :
  Clears the world of all turtles.
 
 # Sliders
 #Generations: Adjust generations to view changes to model.
-
-
-# Switch 
-show-patch-color: The switch shows the patch color when switched on.
-show-circle?: The switch shows the circle at the centre of the nucleus. 
 
 # Monitors
 Patch-Count: Displays patch-count of number of turtles. 
@@ -459,52 +369,106 @@ Plot:
 Shows number of patches against number of generations. 
 
 
-
 ## THINGS TO NOTICE
 
-Adjust the #generations and num-links to collect data on the network. 
-
-#GENERATIONS: 5, 10 , 15 , 20 , 25
-#num-links: 5 , 10 , 15 , 20 , 25
-
-Adjust the values for #generations and num-links accordingly then press the go button which will automatically run the model. After, press make-links to link sibling to sibling and switch off patch-color to notice values changing in Monitor AMPL: Nodes, links and CC. 
-
-Adjust the values for #generations and num-links accordingly and press go to run the model then switch off patch-color , press go. Adjust num-links accordingly and notice changes to the model. 
-
+Model 1 is displayed on the interface upon pressing go-once. 
+Model 2 is displayed on the interface upon pressing go. 
 
 
 ## THINGS TO TRY
 
-Run the model once, then switch the show-patch-color off and have show-circle on to notice different results.  
 
-Second run:
+Change the values in the show-patch procedure to view changes to the interface for either model. 
 
-Run the model once, then press the make-links button after switching the show-patch-color off and switch off the show-circle to notice different results that affect the main model.   
+move sliders for #Generations to view changes to model. 
 
-(suggested things for the user to try to do (move sliders, switches, etc.) with the model)
 
 ## EXTENDING THE MODEL
+Get the switch to work so you can view model 1 and model 2 simultaneously. 
 
-try uncommenting the code and giving running the code below. 
-to make-links
-;  ask turtles with [label = 0][create-links-with other turtles]
-;  ask turtles with [label = 1][create-link-with turtle 2]
-;  create-links-with turtles with [pcolor = green]
-;;  --------------------------------------------------
-;  ask turtle 0 [ create-links-with other turtles ]
-;  ask turtle 0 [ create-link-with turtle 1 ]
-;  ask turtle 2 [ create-link-with turtle 1 ]
-;;  -------------------------------------------------
-;  ask turtle 0 [ create-red-links-to other turtles with [pcolor = green] ]
-;  ask turtle 0 [ create-red-links-from other turtles with [pcolor = green]]
-;;  -----------------------------------------------------------------------
-;  ask turtles [
-; if not any? turtles-on neighbors with [pcolor = green]
-; [create-links-with other turtles]
-;  ]
+# Uncomment sections of code:
+;   set generationstep generationstep + 1 ;; set and check the desired number of generations is reached
+;   if generationstep < #generations [
+;    create-cell-bodies 
+;    move-cell-bodies
+;   ]
 
+ ;   create-turtles 1 [set color white  ;; sets the color of the turtle to white
+             ;       set shape "circle" ;; sets shape of turtle to circle
+            ;        set size 2 ;; set size of turtle to 2
+            ;       setxy (max-pxcor / 2) (max-pycor - 1) ;; setting start poisiton in ;the world
+            ;        set pcolor green ;; setting patch colour to green
+            ;        hatch-children 1 [set color white set size 0.5 set heading 0 set ;hape "circle" ]
+                  ;  produces-copy;; calling produce-copy procedure
+                ;     die ]
+;to go-once ;; initialises model 1
+  ;  if generationstep < #generations [
+ ;   tick
+ ; set generationstep generationstep + 1 ;; set and check the desired number of ;generations is reached
+ ; ask children[move]
+ ; stop
+    
+ ; ]
+;end
+;to move ;; to move procedure
+; replicate
+; die
+;end
+;to mark-and-breed ;; mark-and-breed procedure
+;  ifelse pcolor != green [set pcolor green produces-copy][die]
+ ; set color white
+ ; hatch 1
+;end
+;to Show-Patch-Colors ;; patch procedure
+ ; ;; assign values to patch variables based on current state of the row
+ ; set left-pcolor [pcolor] of patch-at -1 0
+ ; set center-pcolor pcolor
+ ; set right-pcolor [pcolor] of patch-at 1 0
+ ;ifelse ((left-pcolor = green and center-pcolor = green and right-pcolor = green) or
+  ;  (left-pcolor = green and center-pcolor = red and right-pcolor = green) or
+  ;  (left-pcolor = red and center-pcolor = green and right-pcolor = red) or
+  ;  (left-pcolor = red and center-pcolor = red and right-pcolor = red))
+  ;  [ ask patch-at 0 -1[ set pcolor green] ]
+  ;  [ ask patch-at  0  -1 [ set pcolor red] ]
+
+;end
+;to replicate ;; to replicate procedure
+;  hatch-children 1 [move-to-lower-left set color white set size 0.5 set heading 0 set ;shape "circle"]
+ ; hatch-children 1 [move-to-lower-right set color white set size 0.5 set heading 0 set ;shape "circle"]
+;end
+;;
+;to produces-copy ;; to produce-copy procedure
+ ; hatch-copies 1 [
+ ;  set pcolor green
+ ;   set color white
+  ;  set size 0.5
+ ;   set heading 0
+  ;  set shape "circle"
+ ; ]
+;end
+;to move-to-lower-left ;; to move-to-lower-left procedure
+; bk 1
+ ; lt 90
+ ; fd 1
+  ;mark-and-breed
+
+;end
+;to move-to-lower-right ;; to move-to-lower-right procedure
+ ; bk 1
+ ; rt 90
+ ; fd 1
+ ;mark-and-breed
+;end
+
+# Recomment:
+to create-cell-bodies
 end
-(suggested things to add or change in the Code tab to make the model more complicated, detailed, accurate, etc.)
+to move-cell-bodies
+end
+to go
+end 
+
+The Go-Once : press the button then view model 1. 
 
 ## NETLOGO FEATURES
 
@@ -515,7 +479,6 @@ This model used breeds to implement the population of children and copies to for
 CA 1D Rule 90 - the basic rule 90 model
 
 ## CREDITS AND REFERENCES
-
 Wilensky, U. (2002). NetLogo CA 1D Rule 90 model. http://ccl.northwestern.edu/netlogo/models/CA1DRule90. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 
 Rene.2020. Practical 3 Population Growth by cell divison  https://herts.instructure.com/courses/77620/files/2351766?module_item_id=1320622 Date Accessed: 10/11/2020 
@@ -831,17 +794,6 @@ NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
-<experiments>
-  <experiment name="experiment SierpinskyTurtle" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>generation</metric>
-    <metric>patch-count</metric>
-    <enumeratedValueSet variable="#generations">
-      <value value="25"/>
-    </enumeratedValueSet>
-  </experiment>
-</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
